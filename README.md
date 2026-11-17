@@ -5,7 +5,6 @@
 ## 폴더 구조
 ```
 00.chip8/
-|-- doc/             # 학습 문서
 |-- src/main.c       # SDL 창, 메인 루프
 |-- roms/            # 테스트/게임 ROM (.ch8)
 |-- CMakeLists.txt   # 빌드 설정 (SDL2 2.30.9를 자동으로 내려받아 정적 링크)
