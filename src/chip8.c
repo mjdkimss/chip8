@@ -23,11 +23,47 @@ bool keys[16] = {0};
 
 void (*func[COUNT])(chip8* machine, uint16_t opcode) = { 
 	chip8_CLS, 
+	chip8_RET,
+
 	chip8_1NNN,
+	chip8_2NNN,
+	chip8_3XNN,
+	chip8_4XNN,
+	chip8_5XY0,
+	chip8_9XY0,
+	chip8_BNNN,
+
 	chip8_6XNN,
 	chip8_7XNN,
 	chip8_ANNN,
+
+	chip8_8XY0,
+	chip8_8XY1,
+	chip8_8XY2,
+	chip8_8XY3,
+	chip8_8XY4,
+	chip8_8XY5,
+	chip8_8XY6,
+	chip8_8XY7,
+	chip8_8XYE,
+
+	
+
+	chip8_CXNN,
 	chip8_DXYN,
+
+	chip8_EX9E,
+	chip8_EXA1,
+
+	chip8_FX07,
+	chip8_FX0A,
+	chip8_FX15,
+	chip8_FX18,
+	chip8_FX1E,
+	chip8_FX29,
+	chip8_FX33,
+	chip8_FX55,
+	chip8_FX65,
 				};
 
 void chip8_init(chip8* machine)
@@ -36,6 +72,8 @@ void chip8_init(chip8* machine)
 	memset(machine, 0, sizeof(chip8));
 	memcpy(&machine->memory[0x050], chip8font, sizeof(chip8font));
 	machine->reg.PC = 0x200;
+	//난수생성기
+	srand((unsigned int)time(NULL));
 }
 
 bool chip8_loadRom(chip8* machine, const char* path)
@@ -104,7 +142,7 @@ OPINDEX chip8_CPUCycle(chip8* machine)
 {
 	uint16_t opcode = chip8_Fetch(machine);
 	OPINDEX opIndex = chip8_decode(opcode);
-	return chip8_exccute(opIndex, machine, opcode);
+	return chip8_execute(opIndex, machine, opcode);
 
 }
 
@@ -116,7 +154,7 @@ uint16_t chip8_Fetch(chip8* machine)
 	return opcode;
 }
 
-OPINDEX chip8_exccute(OPINDEX index, chip8* machine, uint16_t opcode)
+OPINDEX chip8_execute(OPINDEX index, chip8* machine, uint16_t opcode)
 {
 	if (index > UNKNOWN && index < COUNT)
 	{
@@ -141,6 +179,7 @@ OPINDEX chip8_decode(uint16_t opcode)
 		break;
 
 	case 0x00ee:
+		number = RET;
 		break;
 
 	default:
@@ -157,21 +196,27 @@ OPINDEX chip8_decode(uint16_t opcode)
 		break;
 
 	case 0x2:
+		number = CALL2NNN;
 		break;
 
 	case 0x3:
+		number = SE3XNN;
 		break;
 
 	case 0x4:
+		number = SNE4XNN;
 		break;
 
 	case 0x5:
+		number = SE5XY0;
 		break;
 
 	case 0x9:
+		number = SNE9XY0;
 		break;
 
 	case 0xb:
+		number = JPBNNN;
 		break;
 
 	case 0x6:
@@ -186,30 +231,39 @@ OPINDEX chip8_decode(uint16_t opcode)
 		switch (opcode & 0xf)
 		{
 		case 0x0:
+			number = LD8XY0;
 			break;
 
 		case 0x1:
+			number = OR8XY1;
 			break;
 
 		case 0x2:
+			number = AND8XY2;
 			break;
 
 		case 0x3:
+			number = XOR8XY3;
 			break;
 
 		case 0x4:
+			number = ADD8XY4;
 			break;
 
 		case 0x5:
+			number = SUB8XY5;
 			break;
 
 		case 0x6:
+			number = SHR8XY6;
 			break;
 
 		case 0x7:
+			number = SUBN8XY7;
 			break;
 
 		case 0xE:
+			number = SHL8XYE;
 			break;
 
 		}
@@ -224,6 +278,7 @@ OPINDEX chip8_decode(uint16_t opcode)
 		break;
 
 	case 0xC:
+		number = CXNN;
 		break;
 
 	case 0xD:
@@ -231,11 +286,13 @@ OPINDEX chip8_decode(uint16_t opcode)
 		break;
 
 	case 0xE:
-		switch (opcode & 0xf)
+		switch (opcode & 0xff)
 		{
-		case 0xe:
+		case 0x9e:
+			number = EX9E;
 			break;
-		case 0x1:
+		case 0xa1:
+			number = EXA1;
 			break;
 
 		}
@@ -246,55 +303,238 @@ OPINDEX chip8_decode(uint16_t opcode)
 		switch (opcode & 0xff)
 		{
 		case 0x07:
+			number = FX07;
 			break;
 
 		case 0x0a:
+			number = FX0A;
 			break;
 
 		case 0x15:
+			number = FX15;
 			break;
 
 		case 0x18:
+			number = FX18;
 			break;
 
 		case 0x1e:
+			number = FX1E;
 			break;
 
 		case 0x29:
+			number = FX29;
 			break;
 
 		case 0x33:
+			number = FX33;
 			break;
 
 		case 0x55:
+			number = FX55;
 			break;
 
 		case 0x65:
+			number = FX65;
 			break;
+
+		default:
+			number = UNKNOWN;
 		}
+		break;
 	}
 	
 	default:
 		number = UNKNOWN;
+		break;
 	}
+
 
 	return number;
 }
 
 void chip8_CLS(chip8* machine, uint16_t opcode)
 {
+	//비디오 버퍼를 지운다. 
 	(void)opcode;
 	memset(machine->display, 0, sizeof(machine->display[0]) * SCREENWIDTH * SCREENHEIGHT);
 }
 
+void chip8_RET(chip8* machine, uint16_t opcode)
+{
+	//서브루틴에서 복귀 : 스택에서 pop->'PC'
+	(void)opcode;
+	machine->reg.PC =  machine->stack[machine->reg.SP];
+	machine->stack[machine->reg.SP] = 0x00;
+	machine->reg.SP -= 1;
+}
+
 void chip8_1NNN(chip8* machine, uint16_t opcode)
 {
+	//PC에 타겟 주소를 설정한다. 
 	uint16_t targetAddr = opcode & 0xfff;
 	machine->reg.PC = targetAddr;
 }
 
+void chip8_2NNN(chip8* machine, uint16_t opcode)
+{
+	//현재의 'pc'를 스택에 push 한다. 
+	uint16_t nextPC = (uint16_t)(opcode & 0xfff);
+	uint16_t currentPC = machine->reg.PC;
+	uint16_t currentSP = machine->reg.SP;
+
+	machine->stack[currentSP + 1] = currentPC;
+	machine->reg.PC = nextPC;
+	machine->reg.SP += 1;
+}
+
+void chip8_3XNN(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	uint8_t Vx = machine->reg.V[X];
+	uint8_t NN = (opcode & 0xff);
+	if (Vx == NN)
+		machine->reg.PC += OPCODESIZE;
+}
+
+void chip8_4XNN(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	uint8_t Vx = machine->reg.V[X];
+	uint8_t NN = (opcode & 0xff);
+	if(Vx != NN)
+		machine->reg.PC += OPCODESIZE;
+}
+
+void chip8_5XY0(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	uint8_t Vx = machine->reg.V[X];
+	uint8_t Y = (opcode & 0xf0) >> 4;
+	uint8_t Vy = machine->reg.V[Y];
+
+	if (Vx == Vy)
+		machine->reg.PC += OPCODESIZE;
+}
+
+void chip8_9XY0(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	uint8_t Vx = machine->reg.V[X];
+	uint8_t Y = (opcode & 0xf0) >> 4;
+	uint8_t Vy = machine->reg.V[Y];
+
+	if (Vx != Vy)
+		machine->reg.PC += OPCODESIZE;
+}
+
+void chip8_BNNN(chip8* machine, uint16_t opcode)
+{
+	uint16_t NNN = opcode & 0xFFF;
+	machine->reg.PC = machine->reg.V[0] + NNN;
+}
+
+void chip8_8XY0(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & (0xf00)) >> 8;
+	uint8_t Y = (opcode & (0xf0)) >> 4;
+	machine->reg.V[X] = machine->reg.V[Y];
+}
+
+void chip8_8XY1(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & (0xf00)) >> 8;
+	uint8_t Y = (opcode & (0xf0)) >> 4;
+	machine->reg.V[X] |= machine->reg.V[Y];
+}
+
+void chip8_8XY2(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & (0xf00)) >> 8;
+	uint8_t Y = (opcode & (0xf0)) >> 4;
+	machine->reg.V[X] &= machine->reg.V[Y];
+}
+
+void chip8_8XY3(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & (0xf00)) >> 8;
+	uint8_t Y = (opcode & (0xf0)) >> 4;
+	machine->reg.V[X] ^= machine->reg.V[Y];
+}
+
+void chip8_8XY4(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & (0xf00)) >> 8;
+	uint8_t Y = (opcode & (0xf0)) >> 4;
+	uint16_t value = machine->reg.V[X] + machine->reg.V[Y];
+	machine->reg.V[X] = (uint8_t)(value & 0xff);
+	if (value > 0xff)
+		machine->reg.V[0xF] = 1;
+	else 
+		machine->reg.V[0xF] = 0;
+
+
+}
+
+void chip8_8XY5(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & (0xf00)) >> 8;
+	uint8_t Y = (opcode & (0xf0)) >> 4;
+	int16_t value = machine->reg.V[X] - machine->reg.V[Y];
+
+	machine->reg.V[X] = (value & 0xff);
+	if (value >= 0)
+		machine->reg.V[0xf] = 1;
+	else
+		machine->reg.V[0xF] = 0;
+
+	
+		
+}
+
+void chip8_8XY6(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & (0xf00)) >> 8;
+	uint8_t LSB = machine->reg.V[X] & 0x1;
+	uint8_t value =  machine->reg.V[X] >> 1;
+	machine->reg.V[X] = value;
+	machine->reg.V[0xf] = LSB;
+}
+
+void chip8_8XY7(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & (0xf00)) >> 8;
+	uint8_t Y = (opcode & (0xf0)) >> 4;
+
+	int16_t value = machine->reg.V[Y] - machine->reg.V[X];
+	machine->reg.V[X] = (uint8_t)value;
+
+	if (value >= 0)
+		machine->reg.V[0xf] = 1;
+	else
+		machine->reg.V[0xF] = 0;
+}
+
+void chip8_8XYE(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & (0xf00)) >> 8;
+	uint8_t MSB = machine->reg.V[X] & 0x80;
+	uint8_t value = machine->reg.V[X] << 1;
+	machine->reg.V[X] = value;
+	machine->reg.V[0xF] = MSB >> 7;
+
+}
+
+
+
+
+
+
+
+
 void chip8_6XNN(chip8* machine, uint16_t opcode)
 {
+	//레지스터 Vx에 value값을 설정한다. 
 	uint8_t targetVx = (opcode & 0xf00) >> 8;
 	uint8_t value = opcode & 0xff;
 	machine->reg.V[targetVx] = value;
@@ -302,6 +542,7 @@ void chip8_6XNN(chip8* machine, uint16_t opcode)
 
 void chip8_7XNN(chip8* machine, uint16_t opcode)
 {
+	//레지스터 Vx에 value 값을 더한다.  
 	uint8_t targetVx = (opcode & 0xf00) >> 8;
 	uint8_t value = opcode & 0xff;
 	machine->reg.V[targetVx] += value;
@@ -309,11 +550,25 @@ void chip8_7XNN(chip8* machine, uint16_t opcode)
 
 void chip8_ANNN(chip8* machine, uint16_t opcode)
 {
+	//레지스터 I에 value를 설정한다. 
 	machine->reg.I = opcode & 0xfff;
+}
+
+void chip8_CXNN(chip8* machine, uint16_t opcode)
+{
+
+	uint8_t X = (opcode & (0xf00)) >> 8;
+	uint8_t NN = opcode & (0x0ff);
+	uint8_t value = (rand() % 256) & NN;
+	machine->reg.V[X] = value;
 }
 
 void chip8_DXYN(chip8* machine, uint16_t opcode)
 {
+	//스프라이트 그리기 명령
+	// 레지스터 Vx, Vy에 저장된 값을 시작좌표로 하고 N바이트로 이루어진 스프라이트를
+	// 그린다. 
+
 	const uint8_t x0 =  machine->reg.V[((opcode & 0x0f00) >> 8)] % SCREENWIDTH;
 	const uint8_t y0 =  machine->reg.V[((opcode & 0x00f0) >> 4)] % SCREENHEIGHT;
 	const uint8_t byteCount = (opcode & 0x000f);
@@ -341,6 +596,99 @@ void chip8_DXYN(chip8* machine, uint16_t opcode)
 		}
 	}
 }
+
+void chip8_EX9E(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	if (keys[X] == true)
+		machine->reg.PC += 2;
+}
+
+void chip8_EXA1(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	if (keys[X] != true)
+		machine->reg.PC += 2;
+}
+
+void chip8_FX07(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	machine->reg.V[X] = machine->delayTimer;
+}
+
+void chip8_FX0A(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	int8_t KeyIndex = -1;
+
+	for (int8_t i = 0; i < 16; ++i)
+	{
+		if (keys[i] == true)
+			KeyIndex = i;
+	}
+	if (KeyIndex != -1)
+		machine->reg.V[X] = KeyIndex;
+	else
+		machine->reg.PC -= OPCODESIZE;
+}
+
+void chip8_FX15(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	machine->delayTimer = machine->reg.V[X];
+}
+
+void chip8_FX18(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	machine->soundTimer = machine->reg.V[X];
+}
+
+void chip8_FX1E(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	machine->reg.I += machine->reg.V[X];
+}
+
+void chip8_FX29(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	machine->reg.I = 0x50 + machine->reg.V[X] * 5;
+}
+
+void chip8_FX33(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	uint8_t value = machine->reg.V[X];
+	const uint16_t I = machine->reg.I;
+
+	machine->memory[I] = value / 100;
+	machine->memory[I+1] = ((value % 100) - (value % 10)) / 10 ;
+	machine->memory[I+2] = value % 10;
+}
+
+void chip8_FX55(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	const uint16_t I = machine->reg.I;
+	for (uint8_t i = 0; i <= X; ++i)
+	{
+		machine->memory[I + i] = machine->reg.V[i];
+	}
+}
+
+void chip8_FX65(chip8* machine, uint16_t opcode)
+{
+	uint8_t X = (opcode & 0xf00) >> 8;
+	const uint16_t I = machine->reg.I;
+	for (uint8_t i = 0; i <= X; ++i)
+	{
+		machine->reg.V[i] = machine->memory[I + i];
+	}
+	
+}
+
 
 
 #pragma region Test
@@ -539,3 +887,4 @@ EndofFunction:
 
 }
 #pragma endregion
+
